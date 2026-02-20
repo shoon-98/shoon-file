@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>지렁이 게임</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+        background: radial-gradient(circle at top, #1f2937, #020617 70%);
+        color: #e5e7eb;
+      }
+
+      .container {
+        width: min(92vw, 560px);
+        display: grid;
+        gap: 12px;
+      }
+
+      .panel {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.75);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        backdrop-filter: blur(4px);
+      }
+
+      .panel p {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .score {
+        font-weight: 700;
+        color: #22d3ee;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 8px 12px;
+        background: #22c55e;
+        color: #052e16;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      button:hover {
+        filter: brightness(1.06);
+      }
+
+      canvas {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: 14px;
+        background: #0f172a;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        box-shadow: 0 8px 30px rgba(15, 23, 42, 0.6);
+      }
+
+      .guide {
+        margin: 0;
+        font-size: 13px;
+        color: #94a3b8;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <section class="panel">
+        <p>점수: <span class="score" id="score">0</span></p>
+        <p>최고 점수: <span class="score" id="best">0</span></p>
+        <button id="restart" type="button">다시 시작</button>
+      </section>
+      <canvas id="board" width="480" height="480" aria-label="지렁이 게임 보드"></canvas>
+      <p class="guide">방향키 또는 WASD로 지렁이를 조작하세요. 먹이를 먹을수록 빨라집니다.</p>
+    </main>
+
+    <script>
+      const canvas = document.getElementById("board");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = document.getElementById("score");
+      const bestEl = document.getElementById("best");
+      const restartBtn = document.getElementById("restart");
+
+      const gridCount = 20;
+      const cellSize = canvas.width / gridCount;
+      const baseSpeed = 140;
+
+      let worm;
+      let direction;
+      let queuedDirection;
+      let food;
+      let score;
+      let bestScore = Number(localStorage.getItem("worm-best-score")) || 0;
+      let gameOver;
+      let loopId;
+
+      bestEl.textContent = String(bestScore);
+
+      function randomCell() {
+        return {
+          x: Math.floor(Math.random() * gridCount),
+          y: Math.floor(Math.random() * gridCount),
+        };
+      }
+
+      function spawnFood() {
+        let next = randomCell();
+        while (worm.some((part) => part.x === next.x && part.y === next.y)) {
+          next = randomCell();
+        }
+        food = next;
+      }
+
+      function resetGame() {
+        worm = [
+          { x: 8, y: 10 },
+          { x: 7, y: 10 },
+          { x: 6, y: 10 },
+        ];
+        direction = { x: 1, y: 0 };
+        queuedDirection = { ...direction };
+        score = 0;
+        scoreEl.textContent = "0";
+        gameOver = false;
+        spawnFood();
+        scheduleLoop();
+        draw();
+      }
+
+      function scheduleLoop() {
+        clearTimeout(loopId);
+        const speed = Math.max(70, baseSpeed - score * 3);
+        loopId = setTimeout(tick, speed);
+      }
+
+      function tick() {
+        if (gameOver) return;
+
+        direction = queuedDirection;
+        const head = worm[0];
+        const nextHead = {
+          x: (head.x + direction.x + gridCount) % gridCount,
+          y: (head.y + direction.y + gridCount) % gridCount,
+        };
+
+        if (worm.some((part) => part.x === nextHead.x && part.y === nextHead.y)) {
+          gameOver = true;
+          draw();
+          return;
+        }
+
+        worm.unshift(nextHead);
+
+        if (nextHead.x === food.x && nextHead.y === food.y) {
+          score += 10;
+          scoreEl.textContent = String(score);
+          if (score > bestScore) {
+            bestScore = score;
+            bestEl.textContent = String(bestScore);
+            localStorage.setItem("worm-best-score", String(bestScore));
+          }
+          spawnFood();
+        } else {
+          worm.pop();
+        }
+
+        draw();
+        scheduleLoop();
+      }
+
+      function drawCell(x, y, color) {
+        const padding = 2;
+        ctx.fillStyle = color;
+        ctx.fillRect(x * cellSize + padding, y * cellSize + padding, cellSize - padding * 2, cellSize - padding * 2);
+      }
+
+      function draw() {
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.08)";
+        for (let i = 1; i < gridCount; i += 1) {
+          const pos = i * cellSize;
+          ctx.beginPath();
+          ctx.moveTo(pos, 0);
+          ctx.lineTo(pos, canvas.height);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, pos);
+          ctx.lineTo(canvas.width, pos);
+          ctx.stroke();
+        }
+
+        drawCell(food.x, food.y, "#f97316");
+        worm.forEach((part, index) => drawCell(part.x, part.y, index === 0 ? "#22c55e" : "#4ade80"));
+
+        if (gameOver) {
+          ctx.fillStyle = "rgba(2, 6, 23, 0.75)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#f8fafc";
+          ctx.textAlign = "center";
+          ctx.font = "bold 34px sans-serif";
+          ctx.fillText("게임 오버", canvas.width / 2, canvas.height / 2 - 8);
+          ctx.font = "16px sans-serif";
+          ctx.fillText("다시 시작 버튼을 누르세요", canvas.width / 2, canvas.height / 2 + 24);
+        }
+      }
+
+      function setDirection(next) {
+        if (direction.x + next.x === 0 && direction.y + next.y === 0) return;
+        queuedDirection = next;
+      }
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(key)) {
+          event.preventDefault();
+        }
+
+        if (key === "arrowup" || key === "w") setDirection({ x: 0, y: -1 });
+        if (key === "arrowdown" || key === "s") setDirection({ x: 0, y: 1 });
+        if (key === "arrowleft" || key === "a") setDirection({ x: -1, y: 0 });
+        if (key === "arrowright" || key === "d") setDirection({ x: 1, y: 0 });
+      });
+
+      restartBtn.addEventListener("click", resetGame);
+      resetGame();
+    </script>
+  </body>
+</html>
