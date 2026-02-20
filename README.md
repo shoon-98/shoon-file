@@ -1,21 +1,30 @@
 # shoon-file
 
-브라우저에서 바로 실행할 수 있는 간단한 **우주 총게임**입니다.
+네이버에서 `블로그 체험단` 검색 후 결과를 **하나씩 열어 확인**하는 Selenium 자동화 스크립트입니다.
 
-## 실행 방법
-
-아래 명령으로 로컬 서버를 실행한 뒤 브라우저에서 접속하세요.
+## 준비
 
 ```bash
-python3 -m http.server 4173
+python3 -m venv .venv
+source .venv/bin/activate
+pip install selenium
 ```
 
-그 다음 `http://localhost:4173` 접속.
+> Chrome 브라우저와 호환되는 ChromeDriver가 필요합니다.
 
-## 조작 방법
+## 실행
 
-- 이동: 방향키 좌/우 또는 `A`, `D`
-- 발사: `스페이스`
-- 적을 맞추면 점수가 오릅니다.
-- 적이 플레이어에게 닿거나 바닥까지 내려오면 게임 오버입니다.
-- `다시 시작` 버튼으로 즉시 재시작할 수 있습니다.
+```bash
+python3 naver_blog_experience_checker.py --keyword "블로그 체험단" --limit 10
+```
+
+옵션 예시:
+
+- `--headless`: 창 없이 실행
+- `--per-page-delay 2`: 결과 페이지당 2초 대기
+- `--wait-seconds 20`: 요소 로딩 대기 시간 증가
+
+## 주의사항
+
+- 네이버 정책/캡차/로그인 상태에 따라 자동화가 제한될 수 있습니다.
+- 본 스크립트는 조회 자동화를 돕는 예시이며, 서비스 이용약관을 준수해 사용하세요.
